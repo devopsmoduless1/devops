@@ -1,0 +1,13 @@
+Once K8 clusters created please proceed with following steps
+
+STEP 1:
+
+# Instructions to install Ingress nginx controller
+
+helm repo add ingress-nginx https://kubernetes.github.io/ingress-nginx
+
+helm upgrade --install ingress-nginx ingress-nginx/ingress-nginx -n ingress-nginx --create-namespace
+
+STEP 2:
+
+After installing nginx controller please proceed with deploying nginx resource as in file name ingress.yaml

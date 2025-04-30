@@ -1,0 +1,70 @@
+.terraform_image:
+    image:
+       name: registry.gitlab.com/vino6441212/devops:ci-baseimage
+
+.default_tags:
+    tags:
+     - gitlab-k8-kkm
+
+
+.plan: &plan
+  extends:
+    - .default_tags
+    - .terraform_image
+  script:
+    - cd ${TF_ROOT}
+    - chmod +x ../scripts/*.sh
+    - ../scripts/terraform-init.sh
+    - ../scripts/terraform-validate.sh
+    - ../scripts/terraform-plan.sh
+  artifacts:
+    name: "$CI_JOB_NAME"
+    paths:
+      - ${TF_ROOT}/.terraform/
+      - ${TF_ROOT}/.terraform.lock.hcl
+      - ${TF_ROOT}/plan.cache
+    expire_in: 8 hrs
+
+
+.apply: &apply
+  extends:
+    - .default_tags
+    - .terraform_image
+  script:
+    - cd ${TF_ROOT}
+    - chmod +x ../scripts/*.sh
+    - ../scripts/terraform-apply.sh
+
+.plan_destroy: &plan_destroy
+  extends:
+    - .default_tags
+    - .terraform_image
+  script:
+    - cd ${TF_ROOT}
+    - chmod +x ../scripts/*.sh
+    - ../scripts/terraform-init.sh
+    - ../scripts/terraform-validate.sh
+    - ../scripts/terraform-plan-destroy.sh
+  artifacts:
+    name: "$CI_JOB_NAME"
+    paths:
+      - ${TF_ROOT}/.terraform/
+      - ${TF_ROOT}/.terraform.lock.hcl
+      - ${TF_ROOT}/plan.cache
+    expire_in: 8 hrs
+
+.destroy: &destroy
+  extends:
+    - .default_tags
+    - .terraform_image
+  script:
+    - cd ${TF_ROOT}
+    - chmod +x ../scripts/*.sh
+    - ../scripts/terraform-destroy.sh
+  artifacts:
+    name: "$CI_JOB_NAME"
+    paths:
+      - ${TF_ROOT}/.terraform/
+      - ${TF_ROOT}/.terraform.lock.hcl
+      - ${TF_ROOT}/plan.cache
+    expire_in: 8 hrs

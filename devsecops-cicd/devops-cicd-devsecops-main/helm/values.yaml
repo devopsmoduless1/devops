@@ -1,0 +1,3 @@
+serviceType: dummy
+image:
+  repository: nginx:latest

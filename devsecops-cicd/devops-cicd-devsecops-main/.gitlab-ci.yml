@@ -1,0 +1,70 @@
+# You can override the included template(s) by including variable overrides
+# SAST customization: https://docs.gitlab.com/ee/user/application_security/sast/#customizing-the-sast-settings
+# Secret Detection customization: https://docs.gitlab.com/ee/user/application_security/secret_detection/pipeline/#customization
+# Dependency Scanning customization: https://docs.gitlab.com/ee/user/application_security/dependency_scanning/#customizing-the-dependency-scanning-settings
+# Container Scanning customization: https://docs.gitlab.com/ee/user/application_security/container_scanning/#customizing-the-container-scanning-settings
+# Note that environment variables can be set in several places
+# See https://docs.gitlab.com/ee/ci/variables/#cicd-variable-precedence
+
+default:
+ tags:
+  - gitlab-k8-kkm
+ image:
+  name: registry.gitlab.com/vino6441212/devops:ci-baseimage
+
+include:
+- template: Security/SAST.gitlab-ci.yml
+
+stages:
+- test
+- publish
+- build
+- dockerimage
+- deploy-dev
+
+sast:
+  stage: test
+  artifacts:
+    reports:
+      sast: gl-sast-report.json
+    paths:
+    - 'gl-sast-report.json'
+
+publish:
+  stage: publish
+  script:
+    - echo "Publish reports"
+  artifacts:
+    reports:
+      sast: gl-sast-report.json
+
+build:
+  stage: build
+  image: maven:3-jdk-8
+  script: "mvn -B -DskipTests clean package"
+  artifacts:
+    paths:
+      - target/*.jar
+
+dockerimage:
+  stage: dockerimage
+  image:
+    name: gcr.io/kaniko-project/executor:v1.23.2-debug
+    entrypoint: [""]
+  script:
+    - /kaniko/executor
+      --context "${CI_PROJECT_DIR}"
+      --dockerfile "${CI_PROJECT_DIR}/Dockerfile"
+      --destination "${CI_REGISTRY_IMAGE}:${CI_COMMIT_SHORT_SHA}"
+
+deploy-dev:
+  stage: deploy-dev
+  variables:
+    KUBECONFIG_BASE64: $KUBECONFIG_DEV
+  script:
+    - mkdir ~/.kube
+    - echo $KUBECONFIG_BASE64 | base64 -d  > ~/.kube/config
+    - cat ~/.kube/config
+    - kubectl config current-context
+    - echo "Installing helm chart"
+    - helm upgrade --install --namespace=default devsecops-app ./helm --set image.repository="${CI_REGISTRY_IMAGE}:${CI_COMMIT_SHORT_SHA}" --set serviceType="ClusterIP"

@@ -1,0 +1,48 @@
+.dev_vars:
+  variables:
+    TF_VAR_region: "us-east-1"
+    TF_VAR_ami: "ami-084568db4383264d4"
+    TF_VAR_instance_type: "us-east-1"
+    TF_VAR_cidr_block: "10.0.0.0/16"
+
+plan dev:
+ stage: plan
+ variables:
+     ENV: "dev"
+     REGION: "us-east-1"
+ extends:
+   - .dev_vars
+   - .plan
+
+apply dev:
+ stage: apply
+ variables:
+     ENV: "dev"
+     REGION: "us-east-1"
+ extends:
+   - .dev_vars
+   - .apply
+ needs: [plan dev]
+ when: manual
+
+plan destroy dev:
+ stage: plan-destroy
+ variables:
+     ENV: "dev"
+     REGION: "us-east-1"
+ extends:
+   - .dev_vars
+   - .plan_destroy
+ when: manual
+
+
+destroy dev:
+ stage: destroy
+ variables:
+     ENV: "dev"
+     REGION: "us-east-1"
+ extends:
+   - .dev_vars
+   - .destroy
+ needs: [plan destroy dev]
+ when: manual

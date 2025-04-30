@@ -1,0 +1,68 @@
+.terraform_image:
+    image:
+       name: hashicorp/terraform:1.7.5
+
+.default_tags:
+    tags:
+     - vin-mac
+
+
+.plan: &plan
+  extends:
+    - .default_tags
+    - .terraform_image
+  script:
+#    - cd ${TF_ROOT}
+    - chmod +x scripts/*.sh
+    - scripts/terraform-init.sh
+    - scripts/terraform-validate.sh
+    - scripts/terraform-plan.sh
+  artifacts:
+    name: "$CI_JOB_NAME"
+    paths:
+      - .terraform/
+      - .terraform.lock.hcl
+      -  plan.cache
+    expire_in: 8 hrs
+
+
+.apply: &apply
+  extends:
+    - .default_tags
+    - .terraform_image
+  script:
+#    - cd ${TF_ROOT}
+    - chmod +x scripts/*.sh
+    - scripts/terraform-apply.sh
+
+.plan_destroy: &plan_destroy
+  extends:
+    - .default_tags
+    - .terraform_image
+  script:
+    - chmod +x scripts/*.sh
+    - scripts/terraform-init.sh
+    - scripts/terraform-validate.sh
+    - scripts/terraform-plan-destroy.sh
+  artifacts:
+    name: "$CI_JOB_NAME"
+    paths:
+      - .terraform/
+      - .terraform.lock.hcl
+      - plan.cache
+    expire_in: 8 hrs
+
+.destroy: &destroy
+  extends:
+    - .default_tags
+    - .terraform_image
+  script:
+    - chmod +x scripts/*.sh
+    - scripts/terraform-destroy.sh
+  artifacts:
+    name: "$CI_JOB_NAME"
+    paths:
+      - .terraform/
+      - .terraform.lock.hcl
+      -  plan.cache
+    expire_in: 8 hrs

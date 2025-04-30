@@ -1,0 +1,34 @@
+.rules:any-branch:manualjob:
+  rules:
+    - if: $CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH || $CI_COMMIT_BRANCH == "vin"
+      when: manual
+
+.rules:vin-branch:manualjob:
+  rules:
+    - if: $CI_COMMIT_BRANCH == "vin"
+      when: manual
+
+.rules:any-branch:autojob:
+  rules:
+    - if: $CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH
+      when: manual
+
+.rules:defaultbranch:autojob:
+  rules:
+    - if: $CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH
+      when: manual
+## Using Anchor (&) and alias (*)
+
+.if-default-branch: &if-default-branch
+  if: $CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH
+
+.if-schedule: &if-schedule
+  if: $CI_PIPELINE_SOURCE == "schedule"
+
+## We refer Anchor &if-default-branch and &if-schedule as below using asterisk
+.rules:any-branch:autojobanchor:
+  rules:
+    - <<: *if-schedule
+      when: never
+    - <<: *if-default-branch
+      when: always

@@ -1,0 +1,24 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: devops-svc
+  namespace: default
+spec:
+{{- if eq .Values.serviceType "NodePort" }}
+  ports:
+  - name: http
+    nodePort: 32500
+    port: 80
+    protocol: TCP
+    targetPort: 8080
+  type: NodePort
+{{- else }}
+  ports:
+  - name: http
+    port: 8002
+    protocol: TCP
+    targetPort: 8080
+  type: ClusterIP
+{{- end }}
+  selector:
+    app: devops-app
