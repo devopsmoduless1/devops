@@ -1,0 +1,40 @@
+{
+    "_meta": {
+        "hostvars": {
+            "localhost": {
+                "ansible_connection": "local"
+            },
+            "server1": {
+                "ansible_hosts": "172.27.26.215"
+            },
+            "server2": {
+                "ansible_hosts": "172.27.26.216"
+            }
+        }
+    },
+    "all": {
+        "children": [
+            "ungrouped",
+            "local",
+            "web",
+            "db"
+        ]
+    },
+    "db": {
+        "hosts": [
+            "server1",
+            "server2"
+        ]
+    },
+    "local": {
+        "hosts": [
+            "localhost"
+        ]
+    },
+    "web": {
+        "hosts": [
+            "server1",
+            "server2"
+        ]
+    }
+}

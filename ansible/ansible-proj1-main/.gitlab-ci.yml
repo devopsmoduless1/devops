@@ -1,0 +1,20 @@
+stages:
+  - Init
+  - Apply
+
+default:
+  tags:
+    - vin-test
+
+include:
+  - local: .gitlab/common.yml
+
+Initialize:
+  extends:
+    - .init_config
+  stage: Init
+  image:
+    name: willhallonline/ansible:2.17-alpine-3.20
+  script:
+    - ansible-playbook -i inventory.ini ans.yml
+

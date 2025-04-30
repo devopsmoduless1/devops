@@ -1,0 +1,61 @@
+- name: Disable root SSH login (Ubuntu & RHEL)
+  lineinfile:
+    path: /etc/ssh/sshd_config
+    regexp: '^PermitRootLogin'
+    line: 'PermitRootLogin no'
+  notify: Restart SSH
+
+- name: Set timezone to UTC
+  timezone:
+    name: UTC
+
+- name: Ensure firewalld is running (RedHat)
+  block:
+    - name: Install firewalld
+      yum:
+        name: firewalld
+        state: present
+      when: ansible_os_family == "RedHat"
+
+    - name: Enable and start firewalld
+      service:
+        name: firewalld
+        state: started
+        enabled: true
+      when: ansible_os_family == "RedHat"
+
+- name: Ensure ufw is running (Debian/Ubuntu)
+  block:
+    - name: Install ufw
+      apt:
+        name: ufw
+        state: present
+        update_cache: yes
+      when: ansible_os_family == "Debian"
+
+    - name: Allow SSH
+      ufw:
+        rule: allow
+        name: OpenSSH
+      when: ansible_os_family == "Debian"
+
+    - name: Enable ufw
+      ufw:
+        state: enabled
+      when: ansible_os_family == "Debian"
+
+#  Disabling sending redirects: don't help route others' traffic unless absolutely necessary.
+# Attackers could spoof these redirects to trick a server into sending traffic to a malicious device
+- name: Disable ICMP redirects
+  sysctl:
+    name: net.ipv4.conf.all.accept_redirects
+    value: '0'
+    state: present
+    reload: yes
+
+- name: Disable sending ICMP redirects
+  sysctl:
+    name: net.ipv4.conf.all.send_redirects
+    value: '0'
+    state: present
+    reload: yes

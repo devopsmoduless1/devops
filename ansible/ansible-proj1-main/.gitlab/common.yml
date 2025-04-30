@@ -1,0 +1,24 @@
+.init_config:
+  before_script:
+    - apk add --no-cache openssh jq
+    - mkdir -p ~/.ssh
+    - echo "$SSH_PRIVATE_KEY" > ~/.ssh/id_rsa
+    - chmod 600 ~/.ssh/id_rsa
+    - touch ~/.ssh/known_hosts
+
+    # Optional: Uncomment if REMOTE_HOST is needed
+    # - ssh-keyscan "$REMOTE_HOST" >> ~/.ssh/known_hosts
+
+    # Debugging: Output full inventory to verify
+    - ansible-inventory -i inventory.ini --list
+
+    # Scan all IPs in the "web-servers" group
+    - >
+      ansible-inventory -i inventory.ini --list |
+      jq -r '.["web-servers"].hosts[]' |
+      xargs -I {} ansible-inventory -i inventory.ini --host {} |
+      jq -r '.ansible_host' |
+      while read -r ip; do
+        echo "Scanning $ip"
+        ssh-keyscan -H "$ip" >> ~/.ssh/known_hosts
+      done

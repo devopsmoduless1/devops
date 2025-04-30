@@ -1,0 +1,17 @@
+- name: Apply Base config and webserver
+  hosts: web-servers
+  become: yes   #  this enables sudo
+
+  roles:
+    - common
+    - nginx
+
+#- name: Init
+#  hosts: local
+#  tasks:
+##    - name: Print a message
+##      setup:
+##    - name: Print facts
+##      debug:
+###        var: ansible_facts
+##          var: ansible_distribution

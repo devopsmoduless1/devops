@@ -1,0 +1,11 @@
+- name: Debug join command on worker
+  debug:
+    msg: "{{ hostvars['master']['kube_join_command'] }}"
+  when: hostvars['master']['kube_join_command'] is defined
+
+
+- name: Join worker node to cluster
+  ansible.builtin.shell: "{{ hostvars['master']['kube_join_command'] }}"
+  args:
+    creates: /etc/kubernetes/kubelet.conf
+  when: hostvars['master']['kube_join_command'] is defined
