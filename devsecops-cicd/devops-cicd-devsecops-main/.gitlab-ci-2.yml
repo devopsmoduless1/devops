@@ -1,0 +1,144 @@
+default:
+ tags:
+  - gitlab-k8-kkm
+ image:
+  name: registry.gitlab.com/vino6441212/devops:ci-baseimage
+
+stages:
+- SAST
+- SAST-REPORT
+- BUILD
+- HADOLINT
+- DOCKER IMAGE SCAN
+- DOCKER IMAGE BUILD & PUSH
+- DEPLOY TO KUBERNETES
+
+### START Uncomment for Gitlab Sast Report
+# #Working Code
+# 1. SAST SCANNING
+# include:
+#  - template: Security/SAST.gitlab-ci.yml
+
+# #
+# SAST:
+#   stage: test
+#   artifacts:
+#     paths:
+#       - gl-sast-report.json
+#     expire_in: 1 week
+# parse-sast-report:
+#   image: pcfens/sast-parser
+#   stage: build
+#   dependencies:
+#     - semgrep-sast
+#   script:
+#     - pwd
+#     - ls -lAh .
+#     - find / -iname "gl-sast-report.json"
+#     - find / -iname "*sast*"
+#     - python /app/parse-sast.py gl-sast-report.json > sast_report.html
+#     - ls -la
+#   artifacts:
+#     paths:
+      # - sast_report.html
+
+### END Uncomment for Gitlab Sast Report
+# test-snyk only runs test & monitor commands on Snyk.
+SAST:
+  stage: SAST
+  image:
+    # Utilise a standard CLI docker images published by Snyk.
+    # For the full list, see https://github.com/snyk/snyk-images
+    name: snyk/snyk:maven-3-jdk-20
+    entrypoint: [ "" ]
+  script:
+    - snyk auth $SNYK_TOKEN
+    - snyk monitor --project-name=$CI_PROJECT_NAME
+    - snyk test --all-projects || true
+
+# The following section demonstrates the creation of a HTML artifact.
+# It requires snyk-to-html, a tool currently only distributed via NPM.
+SAST REPORT:
+  stage: SAST-REPORT
+  image:
+    # Utilise a standard CLI docker images published by Snyk.
+    # For the full list, see https://github.com/snyk/snyk-images
+    name: snyk/snyk:maven-3-jdk-20
+    entrypoint: [ "" ]
+  script:
+    - curl -fsSL https://deb.nodesource.com/setup_20.x | bash -
+    - apt-get update && apt-get install -y nodejs && npm install -g snyk-to-html
+    - snyk test --all-projects --json | snyk-to-html -o results.html  || true
+  artifacts:
+    paths: [ "results.html" ]
+    when: always
+
+Maven Build Artficats:
+  stage: BUILD
+  image: maven:3-jdk-8
+  script: "mvn -B -DskipTests clean package"
+  artifacts:
+    paths:
+      - target/*.jar
+
+
+Docker File Lint:
+  stage: HADOLINT
+  image: hadolint/hadolint:latest-debian
+  # image: ghcr.io/hadolint/hadolint:latest-debian
+  script:
+    - hadolint Dockerfile || true
+
+
+Docker Image Scan - Artifcat generation:
+ stage: DOCKER IMAGE SCAN
+ image:
+    name: gcr.io/kaniko-project/executor:v1.23.2-debug
+    entrypoint: [""]
+ script:
+    - /kaniko/executor
+      --context "${CI_PROJECT_DIR}"
+      --dockerfile "${CI_PROJECT_DIR}/Dockerfile"
+      --destination "${CI_REGISTRY_IMAGE}:${CI_COMMIT_SHORT_SHA}"
+      --no-push --destination=outimage --tarPath=out.tar
+    - ls -la
+ artifacts:
+    paths:
+    - out.tar
+
+# Scan the aritifact generated in previous step
+Docker Image Scan:
+   stage: DOCKER IMAGE SCAN
+   needs: ["Docker Image Scan - Artifcat generation"]
+   image: debian:bullseye
+   script:
+      - apt-get update && apt-get -y install jq curl skopeo
+      - curl --compressed https://downloads.snyk.io/cli/stable/snyk-linux -o snyk
+      - chmod +x snyk && mv snyk /usr/local/bin
+      - snyk auth $SNYK_TOKEN
+      - skopeo copy docker-archive:out.tar docker-archive:out2.tar
+      - snyk test --docker docker-archive:out2.tar --file="${CI_PROJECT_DIR}/Dockerfile" || true
+      - snyk iac test || true
+
+DOCKER BUILD IMAGE:
+  stage: DOCKER IMAGE BUILD & PUSH
+  image:
+    name: gcr.io/kaniko-project/executor:v1.23.2-debug
+    entrypoint: [""]
+  script:
+    - /kaniko/executor
+      --context "${CI_PROJECT_DIR}"
+      --dockerfile "${CI_PROJECT_DIR}/Dockerfile"
+      --destination "${CI_REGISTRY_IMAGE}:${CI_COMMIT_SHORT_SHA}"
+
+DEPLOY:
+  stage: DEPLOY TO KUBERNETES
+  variables:
+    KUBECONFIG_BASE64: $KUBECONFIG_DEV
+  script:
+    - mkdir ~/.kube
+    - echo $KUBECONFIG_BASE64 | base64 -d  > ~/.kube/config
+    - cat ~/.kube/config
+    - kubectl config current-context
+    - echo "Installing helm chart"
+    - helm upgrade --install --namespace=default devsecops-app ./helm --set image.repository="${CI_REGISTRY_IMAGE}:${CI_COMMIT_SHORT_SHA}" --set serviceType="ClusterIP"
